@@ -8,20 +8,6 @@
 
 import Foundation
 
-extension Collection {
-    func count(where test: (Element) throws -> Bool) rethrows -> Int {
-        return try self.filter(test).count
-    }
-}
-
-extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        return stride(from: 0, to: count, by: size).map {
-            Array(self[$0 ..< Swift.min($0 + size, count)])
-        }
-    }
-}
-
 enum Mode {
     case singleThread
     case multipleThreads
@@ -145,24 +131,23 @@ func chooseNextGuessSingleThread(untried: [Code]) -> Code {
 }
 
 func chooseNextGuessMultipleThreads(untried: [Code]) -> Code {
-    let dispatchQueue = DispatchQueue.global(qos: .userInitiated)
-    let dispatchGroup = DispatchGroup()
     let numThreads = 8
     let chunkSize = allCodes.count / numThreads
     let chunks = allCodes.chunked(into: chunkSize)
     var bests = [(Int, Code)]()
+    let dispatchQueue = DispatchQueue.global(qos: .userInitiated)
+    let dispatchGroup = DispatchGroup()
+    let dispatchSemaphore = DispatchSemaphore(value: 1)
     for threadNum in 0..<numThreads {
         let chunk = chunks[threadNum]
         dispatchQueue.async(group: dispatchGroup) {
             let best = task(untried: untried, chunk: chunk)
-            DispatchQueue.main.sync { bests.append(best) }
+            dispatchSemaphore.wait()
+            defer { dispatchSemaphore.signal() }
+            bests.append(best)
         }
     }
-    var waitResult = DispatchTimeoutResult.timedOut
-    while waitResult != .success {
-        waitResult = dispatchGroup.wait(timeout: .now() + 1.0)
-        RunLoop.main.run(until: Date())
-    }
+    dispatchGroup.wait()
     log(message: "bests: \(bests)")
     let best = bests.min(by: { $0.0 < $1.0 })!
     log(message: "best: \(best)")
