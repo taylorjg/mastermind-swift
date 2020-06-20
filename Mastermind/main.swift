@@ -131,6 +131,9 @@ func chooseNextGuessSingleThread(untried: [Code]) -> Code {
 }
 
 func chooseNextGuessMultipleThreads(untried: [Code]) -> Code {
+    if untried.count < 32 {
+        return chooseNextGuessSingleThread(untried: untried)
+    }
     let numThreads = 8
     let chunkSize = allCodes.count / numThreads
     let chunks = allCodes.chunked(into: chunkSize)
