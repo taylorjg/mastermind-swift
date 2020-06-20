@@ -94,31 +94,31 @@ var allScores: [Score] {
     return scores
 }
 
-func evaluateGuess(secret: Code, guess: Code) -> Score {
+func evaluateScore(code1: Code, code2: Code) -> Score {
     let mins = allPegs.map { peg -> Int in
-        let numMatchingSecretPegs = secret.pegs.count { $0 == peg }
-        let numMatchingGuessPegs = guess.pegs.count { $0 == peg }
-        return min(numMatchingSecretPegs, numMatchingGuessPegs)
+        let numMatchingCode1Pegs = code1.pegs.count { $0 == peg }
+        let numMatchingCode2Pegs = code2.pegs.count { $0 == peg }
+        return min(numMatchingCode1Pegs, numMatchingCode2Pegs)
     }
     let sumOfMins = mins.reduce(0, +)
-    let blacks = Array(zip(secret.pegs, guess.pegs)).count { $0.0 == $0.1 }
+    let blacks = Array(zip(code1.pegs, code2.pegs)).count { $0.0 == $0.1 }
     let whites = sumOfMins - blacks
     return Score(blacks: blacks, whites: whites)
 }
 
-func createRandomSecret() -> Code {
+func getRandomSecret() -> Code {
     allCodes.randomElement()!
 }
 
 let initialGuess = Code(p0: .red, p1: .red, p2: .green, p3: .green)
 
 func chooseNextGuess(untried: [Code]) -> Code {
-    let best = allCodes.reduce((Int.max, initialGuess), { (currentBest, allCode) in
-        let a = allScores.reduce(0, { (currentMax, score) in
-            let thisMax = untried.count { evaluateGuess(secret: allCode, guess: $0) == score }
-            return max(currentMax, thisMax)
+    let best = allCodes.reduce((Int.max, initialGuess), { (currentBest, code) in
+        let count = allScores.reduce(0, { (currentMax, score) in
+            let count = untried.count { evaluateScore(code1: code, code2: $0) == score }
+            return max(currentMax, count)
         })
-        return a < currentBest.0 ? (a, allCode) : currentBest
+        return count < currentBest.0 ? (count, code) : currentBest
     })
     return best.1
 }
@@ -132,7 +132,7 @@ func recursiveSolveStep(attempt: (Code) -> Score, untried: [Code]) -> Code {
         return guess
     }
     let filteredUntried = untried.filter { code in
-        evaluateGuess(secret: code, guess: guess) == score
+        evaluateScore(code1: code, code2: guess) == score
     }
     return recursiveSolveStep(attempt: attempt, untried: filteredUntried)
 }
@@ -141,9 +141,9 @@ func solve(attempt: (Code) -> Score) -> Code {
     recursiveSolveStep(attempt: attempt, untried: allCodes)
 }
 
-let secret = createRandomSecret()
+let secret = getRandomSecret()
 let answer = solve { guess in
-    let score = evaluateGuess(secret: secret, guess: guess)
+    let score = evaluateScore(code1: secret, code2: guess)
     print("guess: \(guess); score: \(score)")
     return score
 }
