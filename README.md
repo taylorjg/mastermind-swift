@@ -6,7 +6,7 @@ Swift implementation of Knuth's algorithm to solve Mastermind within 5 guesses.
 
 * Modes of operation:
   * ~~using a single thread~~
-  * using multiple threads
+  * ~~using multiple threads~~
   * using a Metal compute shader
 
 # Links

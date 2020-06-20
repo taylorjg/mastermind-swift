@@ -14,6 +14,14 @@ extension Collection {
     }
 }
 
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
+    }
+}
+
 enum Mode {
     case singleThread
     case multipleThreads
@@ -22,7 +30,7 @@ enum Mode {
 
 var mode: Mode = .singleThread
 
-enum Peg: CustomStringConvertible, CaseIterable {
+enum Peg: CaseIterable, CustomStringConvertible {
     case red
     case green
     case blue
@@ -59,7 +67,7 @@ struct Code: CustomStringConvertible {
     }
 }
 
-struct Score: CustomStringConvertible, Equatable {
+struct Score: Equatable, CustomStringConvertible {
     let blacks: Int
     let whites: Int
     
@@ -114,25 +122,51 @@ func evaluateScore(code1: Code, code2: Code) -> Score {
     return Score(blacks: blacks, whites: whites)
 }
 
-func getRandomSecret() -> Code {
+func randomSecret() -> Code {
     allCodes.randomElement()!
 }
 
 let initialGuess = Code(p0: .red, p1: .red, p2: .green, p3: .green)
 
-func chooseNextGuessSingleThread(untried: [Code]) -> Code {
-    let best = allCodes.reduce((Int.max, initialGuess), { (currentBest, code) in
+func task(untried: [Code], chunk: [Code]) -> (Int, Code) {
+    let best = chunk.reduce((Int.max, initialGuess), { (currentBest, code) in
         let count = allScores.reduce(0, { (currentMax, score) in
             let count = untried.count { evaluateScore(code1: code, code2: $0) == score }
             return max(currentMax, count)
         })
         return count < currentBest.0 ? (count, code) : currentBest
     })
+    return best
+}
+
+func chooseNextGuessSingleThread(untried: [Code]) -> Code {
+    let best = task(untried: untried, chunk: allCodes)
     return best.1
 }
 
 func chooseNextGuessMultipleThreads(untried: [Code]) -> Code {
-    return initialGuess
+    let dispatchQueue = DispatchQueue.global(qos: .userInitiated)
+    let dispatchGroup = DispatchGroup()
+    let numThreads = 8
+    let chunkSize = allCodes.count / numThreads
+    let chunks = allCodes.chunked(into: chunkSize)
+    var bests = [(Int, Code)]()
+    for threadNum in 0..<numThreads {
+        let chunk = chunks[threadNum]
+        dispatchQueue.async(group: dispatchGroup) {
+            let best = task(untried: untried, chunk: chunk)
+            DispatchQueue.main.sync { bests.append(best) }
+        }
+    }
+    var waitResult = DispatchTimeoutResult.timedOut
+    while waitResult != .success {
+        waitResult = dispatchGroup.wait(timeout: .now() + 1.0)
+        RunLoop.main.run(until: Date())
+    }
+    log(message: "bests: \(bests)")
+    let best = bests.min(by: { $0.0 < $1.0 })!
+    log(message: "best: \(best)")
+    return best.1
 }
 
 func chooseNextGuessMetalComputeShader(untried: [Code]) -> Code {
@@ -140,6 +174,7 @@ func chooseNextGuessMetalComputeShader(untried: [Code]) -> Code {
 }
 
 func chooseNextGuess(untried: [Code]) -> Code {
+    log(message: "untried.count: \(untried.count)")
     switch mode {
     case .singleThread:
         return chooseNextGuessSingleThread(untried: untried)
@@ -199,8 +234,6 @@ func processCommandLineArgs() {
         mode = .singleThread
     case "-mt", "--multiple-threads":
         mode = .multipleThreads
-        fputs("--multiple-threads not implemented yet!\n", stderr)
-        exit(1)
     case "-mcs", "--metal-compute-shader":
         mode = .metalComputeShader
         fputs("--metal-compute-shader not implemented yet!\n", stderr)
@@ -212,7 +245,7 @@ func processCommandLineArgs() {
 
 func main() {
     processCommandLineArgs()
-    let secret = getRandomSecret()
+    let secret = randomSecret()
     let answer = solve { guess in
         let score = evaluateScore(code1: secret, code2: guess)
         log(message: "guess: \(guess); score: \(score)")
