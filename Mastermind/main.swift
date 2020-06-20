@@ -14,6 +14,14 @@ extension Collection {
     }
 }
 
+enum Mode {
+    case singleThread
+    case multipleThreads
+    case metalComputeShader
+}
+
+var mode: Mode = .singleThread
+
 enum Peg: CustomStringConvertible, CaseIterable {
     case red
     case green
@@ -112,7 +120,7 @@ func getRandomSecret() -> Code {
 
 let initialGuess = Code(p0: .red, p1: .red, p2: .green, p3: .green)
 
-func chooseNextGuess(untried: [Code]) -> Code {
+func chooseNextGuessSingleThread(untried: [Code]) -> Code {
     let best = allCodes.reduce((Int.max, initialGuess), { (currentBest, code) in
         let count = allScores.reduce(0, { (currentMax, score) in
             let count = untried.count { evaluateScore(code1: code, code2: $0) == score }
@@ -121,6 +129,25 @@ func chooseNextGuess(untried: [Code]) -> Code {
         return count < currentBest.0 ? (count, code) : currentBest
     })
     return best.1
+}
+
+func chooseNextGuessMultipleThreads(untried: [Code]) -> Code {
+    return initialGuess
+}
+
+func chooseNextGuessMetalComputeShader(untried: [Code]) -> Code {
+    return initialGuess
+}
+
+func chooseNextGuess(untried: [Code]) -> Code {
+    switch mode {
+    case .singleThread:
+        return chooseNextGuessSingleThread(untried: untried)
+    case .multipleThreads:
+        return chooseNextGuessMultipleThreads(untried: untried)
+    case .metalComputeShader:
+        return chooseNextGuessMetalComputeShader(untried: untried)
+    }
 }
 
 func recursiveSolveStep(attempt: (Code) -> Score, untried: [Code]) -> Code {
@@ -141,14 +168,57 @@ func solve(attempt: (Code) -> Score) -> Code {
     recursiveSolveStep(attempt: attempt, untried: allCodes)
 }
 
-let secret = getRandomSecret()
-let answer = solve { guess in
-    let score = evaluateScore(code1: secret, code2: guess)
+func getTimestamp() -> String {
     let date = Date()
     let dateFormatter = DateFormatter()
     dateFormatter.timeStyle = .medium
     let dateString = dateFormatter.string(from: date)
-    print("[\(dateString)] guess: \(guess); score: \(score)")
-    return score
+    return dateString
 }
-print("answer: \(answer)")
+
+func log(message: String) {
+    print("[\(getTimestamp())] \(message)")
+}
+
+func usage() {
+    fputs("Usage: Mastermind [\n", stderr)
+    fputs("\t-st | --single-thread |\n", stderr)
+    fputs("\t-mt | --multiple-threads |\n", stderr)
+    fputs("\t-mcs | --metal-compute-shader\n", stderr)
+    fputs("]\n", stderr)
+    exit(1)
+}
+
+func processCommandLineArgs() {
+    if CommandLine.argc < 2 {
+        return
+    }
+    let arg1 = CommandLine.arguments[1]
+    switch arg1 {
+    case "-st", "--single-thread":
+        mode = .singleThread
+    case "-mt", "--multiple-threads":
+        mode = .multipleThreads
+        fputs("--multiple-threads not implemented yet!\n", stderr)
+        exit(1)
+    case "-mcs", "--metal-compute-shader":
+        mode = .metalComputeShader
+        fputs("--metal-compute-shader not implemented yet!\n", stderr)
+        exit(1)
+    default:
+        usage()
+    }
+}
+
+func main() {
+    processCommandLineArgs()
+    let secret = getRandomSecret()
+    let answer = solve { guess in
+        let score = evaluateScore(code1: secret, code2: guess)
+        log(message: "guess: \(guess); score: \(score)")
+        return score
+    }
+    log(message: "answer: \(answer)")
+}
+
+main()
