@@ -144,7 +144,11 @@ func solve(attempt: (Code) -> Score) -> Code {
 let secret = getRandomSecret()
 let answer = solve { guess in
     let score = evaluateScore(code1: secret, code2: guess)
-    print("guess: \(guess); score: \(score)")
+    let date = Date()
+    let dateFormatter = DateFormatter()
+    dateFormatter.timeStyle = .medium
+    let dateString = dateFormatter.string(from: date)
+    print("[\(dateString)] guess: \(guess); score: \(score)")
     return score
 }
 print("answer: \(answer)")
