@@ -78,12 +78,40 @@ constant score_t allScores[] = {
     score_t { .blacks = 4, .whites = 0 }
 };
 
+uint8_t countMatchingPegs(peg_t peg, const code_t code)
+{
+    return
+    (code.p0 == peg ? 1 : 0) +
+    (code.p1 == peg ? 1 : 0) +
+    (code.p2 == peg ? 1 : 0) +
+    (code.p3 == peg ? 1 : 0);
+}
+
+score_t evaluateScore(const code_t code1, const code_t code2)
+{
+    uint8_t sumOfMins = 0;
+    for (constant peg_t &peg: allPegs) {
+        uint numMatchingCode1Pegs = countMatchingPegs(peg, code1);
+        uint numMatchingCode2Pegs = countMatchingPegs(peg, code2);
+        sumOfMins += min(numMatchingCode1Pegs, numMatchingCode2Pegs);
+    }
+    uint8_t blacks = 0;
+    if (code1.p0 == code2.p0) blacks++;
+    if (code1.p1 == code2.p1) blacks++;
+    if (code1.p2 == code2.p2) blacks++;
+    if (code1.p3 == code2.p3) blacks++;
+    uint8_t whites = sumOfMins - blacks;
+    return score_t { blacks, whites };
+}
+
 kernel void test(constant uint16_t *untried [[buffer(0)]],
                  constant uint16_t &untriedCount [[buffer(1)]],
                  device best_t *bests [[buffer(2)]],
                  uint index [[thread_position_in_grid]])
 {
     code_t allCode = allCodeFromIndex(index);
-    bests[index].count = index;
+    code_t untriedCode = decodeCodeInterop(untried[0]);
+    score_t score = evaluateScore(allCode, untriedCode);
+    bests[index].count = score.whites;
     bests[index].code = encodeCodeInterop(allCode);
 }
