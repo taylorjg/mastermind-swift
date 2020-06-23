@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Metal
 
 enum Mode {
     case singleThread
@@ -16,7 +17,7 @@ enum Mode {
 
 var mode: Mode = .singleThread
 
-enum Peg: CaseIterable, CustomStringConvertible {
+enum Peg: Int, CaseIterable, CustomStringConvertible {
     case red
     case green
     case blue
@@ -233,13 +234,53 @@ func processCommandLineArgs() {
 
 func main() {
     processCommandLineArgs()
-    let secret = randomSecret()
-    let answer = solve { guess in
-        let score = evaluateScore(code1: secret, code2: guess)
-        log(message: "guess: \(guess); score: \(score)")
-        return score
+    
+    let device = MTLCreateSystemDefaultDevice()!
+    let library = device.makeDefaultLibrary()!
+    let testFunction = library.makeFunction(name: "test")!
+    let commandQueue = device.makeCommandQueue()!
+    let pipelineState = try! device.makeComputePipelineState(function: testFunction)
+    
+    let commandBuffer = commandQueue.makeCommandBuffer()!
+    let commandEncoder = commandBuffer.makeComputeCommandEncoder()!
+    commandEncoder.setComputePipelineState(pipelineState)
+    
+    let untried = allCodes[0..<6]
+    let untriedInterop = untried.map { code in encodeCodeInterop(code: code) }
+    let untriedInteropLength = MemoryLayout<UInt16>.stride * untriedInterop.count
+    commandEncoder.setBytes(untriedInterop, length: untriedInteropLength, index: 0)
+    
+    var untriedCount = UInt16(untriedInterop.count)
+    let untriedCountLength = MemoryLayout<UInt16>.stride
+    commandEncoder.setBytes(&untriedCount, length: untriedCountLength, index: 1)
+    
+    let numThreads = allCodes.count
+    let bestsBufferLength = MemoryLayout<BestInterop>.stride * numThreads
+    let bestsBuffer = device.makeBuffer(length: bestsBufferLength, options: .storageModeShared)!
+    commandEncoder.setBuffer(bestsBuffer, offset: 0, index: 2)
+    
+    let threadsPerGrid = MTLSize(width: numThreads, height: 1, depth: 1)
+    let threadsPerThreadgroup = MTLSize(width: pipelineState.threadExecutionWidth, height: 1, depth: 1)
+    commandEncoder.dispatchThreads(threadsPerGrid, threadsPerThreadgroup: threadsPerThreadgroup)
+    
+    commandEncoder.endEncoding()
+    commandBuffer.commit()
+    commandBuffer.waitUntilCompleted()
+    
+    let bests = bestsBuffer.contents().bindMemory(to: BestInterop.self, capacity: numThreads)
+    for idx in 0..<numThreads {
+        let bestInterop = (bests + idx).pointee
+        let (count, code) = decodeBestInterop(bestInterop: bestInterop)
+        print("count: \(count); code: \(code)")
     }
-    log(message: "answer: \(answer)")
+
+    //    let secret = randomSecret()
+    //    let answer = solve { guess in
+    //        let score = evaluateScore(code1: secret, code2: guess)
+    //        log(message: "guess: \(guess); score: \(score)")
+    //        return score
+    //    }
+    //    log(message: "answer: \(answer)")
 }
 
 main()

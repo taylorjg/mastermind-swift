@@ -8,7 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		C331869C249D36C3004DC93A /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = C331869B249D36C3004DC93A /* main.swift */; };
+		C368EA0524A166B000578E02 /* interop.swift in Sources */ = {isa = PBXBuildFile; fileRef = C368EA0424A166B000578E02 /* interop.swift */; };
 		C397AB55249EAB8000B62537 /* extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C397AB54249EAB8000B62537 /* extensions.swift */; };
+		C397AB58249FEE8200B62537 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = C397AB57249FEE8200B62537 /* Shaders.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,7 +28,9 @@
 /* Begin PBXFileReference section */
 		C3318698249D36C3004DC93A /* Mastermind */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Mastermind; sourceTree = BUILT_PRODUCTS_DIR; };
 		C331869B249D36C3004DC93A /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		C368EA0424A166B000578E02 /* interop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = interop.swift; sourceTree = "<group>"; };
 		C397AB54249EAB8000B62537 /* extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = extensions.swift; sourceTree = "<group>"; };
+		C397AB57249FEE8200B62537 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +65,8 @@
 			children = (
 				C331869B249D36C3004DC93A /* main.swift */,
 				C397AB54249EAB8000B62537 /* extensions.swift */,
+				C397AB57249FEE8200B62537 /* Shaders.metal */,
+				C368EA0424A166B000578E02 /* interop.swift */,
 			);
 			path = Mastermind;
 			sourceTree = "<group>";
@@ -123,6 +129,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C397AB58249FEE8200B62537 /* Shaders.metal in Sources */,
+				C368EA0524A166B000578E02 /* interop.swift in Sources */,
 				C331869C249D36C3004DC93A /* main.swift in Sources */,
 				C397AB55249EAB8000B62537 /* extensions.swift in Sources */,
 			);
@@ -249,6 +257,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -258,6 +267,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
