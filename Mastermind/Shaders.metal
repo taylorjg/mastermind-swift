@@ -32,12 +32,17 @@ typedef struct {
     uint8_t whites;
 } score_t;
 
+bool operator==(thread const score_t& lhs, constant const score_t& rhs)
+{
+    return lhs.blacks == rhs.blacks && lhs.whites == rhs.whites;
+}
+
 typedef struct {
     uint16_t count;
     uint16_t code;
 } best_t;
 
-uint16_t encodeCodeInterop(code_t code) {
+uint16_t encodeCodeInterop(thread const code_t& code) {
     uint16_t p0 = code.p0;
     uint16_t p1 = code.p1 << 4;
     uint16_t p2 = code.p2 << 8;
@@ -78,7 +83,7 @@ constant score_t allScores[] = {
     score_t { .blacks = 4, .whites = 0 }
 };
 
-uint8_t countMatchingPegs(peg_t peg, const code_t code)
+uint8_t countMatchingPegs(peg_t peg, thread const code_t& code)
 {
     return
     (code.p0 == peg ? 1 : 0) +
@@ -87,10 +92,10 @@ uint8_t countMatchingPegs(peg_t peg, const code_t code)
     (code.p3 == peg ? 1 : 0);
 }
 
-score_t evaluateScore(const code_t code1, const code_t code2)
+score_t evaluateScore(thread const code_t& code1, thread const code_t& code2)
 {
     uint8_t sumOfMins = 0;
-    for (constant peg_t &peg: allPegs) {
+    for (constant peg_t& peg: allPegs) {
         uint numMatchingCode1Pegs = countMatchingPegs(peg, code1);
         uint numMatchingCode2Pegs = countMatchingPegs(peg, code2);
         sumOfMins += min(numMatchingCode1Pegs, numMatchingCode2Pegs);
@@ -104,30 +109,24 @@ score_t evaluateScore(const code_t code1, const code_t code2)
     return score_t { blacks, whites };
 }
 
-// TODO: implement this on score_t ?
-bool sameScore(const score_t score1, const score_t score2) {
-    return score1.blacks == score2.blacks && score1.whites == score2.whites;
-}
-
-best_t findBest(constant uint16_t *untried, uint16_t untriedCount, code_t allCode)
+best_t findBest(constant uint16_t* untried, uint16_t untriedCount, thread const code_t& allCode)
 {
     uint16_t maxCount = 0;
-    for (constant score_t &allScore: allScores) {
+    for (constant score_t& allScore: allScores) {
         uint16_t count = 0;
         for (uint i = 0; i < untriedCount; ++i) {
             code_t untriedCode = decodeCodeInterop(untried[i]);
             score_t score = evaluateScore(allCode, untriedCode);
-            // if (score == allScore) count++;
-            if (sameScore(score, allScore)) count++;
+            if (score == allScore) count++;
         }
         maxCount = max(maxCount, count);
     }
     return best_t { maxCount, encodeCodeInterop(allCode) };
 }
 
-kernel void test(constant uint16_t *untried [[buffer(0)]],
-                 constant uint16_t &untriedCount [[buffer(1)]],
-                 device best_t *bests [[buffer(2)]],
+kernel void test(constant uint16_t* untried [[buffer(0)]],
+                 constant uint16_t& untriedCount [[buffer(1)]],
+                 device best_t* bests [[buffer(2)]],
                  uint index [[thread_position_in_grid]])
 {
     code_t allCode = allCodeFromIndex(index);
