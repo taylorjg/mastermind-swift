@@ -273,7 +273,7 @@ func main() {
         let (count, code) = decodeBestInterop(bestInterop: bestInterop)
         print("count: \(count); code: \(code)")
     }
-
+    
     //    let secret = randomSecret()
     //    let answer = solve { guess in
     //        let score = evaluateScore(code1: secret, code2: guess)

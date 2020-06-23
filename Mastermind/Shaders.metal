@@ -104,14 +104,32 @@ score_t evaluateScore(const code_t code1, const code_t code2)
     return score_t { blacks, whites };
 }
 
+// TODO: implement this on score_t ?
+bool sameScore(const score_t score1, const score_t score2) {
+    return score1.blacks == score2.blacks && score1.whites == score2.whites;
+}
+
+best_t findBest(constant uint16_t *untried, uint16_t untriedCount, code_t allCode)
+{
+    uint16_t maxCount = 0;
+    for (constant score_t &allScore: allScores) {
+        uint16_t count = 0;
+        for (uint i = 0; i < untriedCount; ++i) {
+            code_t untriedCode = decodeCodeInterop(untried[i]);
+            score_t score = evaluateScore(allCode, untriedCode);
+            // if (score == allScore) count++;
+            if (sameScore(score, allScore)) count++;
+        }
+        maxCount = max(maxCount, count);
+    }
+    return best_t { maxCount, encodeCodeInterop(allCode) };
+}
+
 kernel void test(constant uint16_t *untried [[buffer(0)]],
                  constant uint16_t &untriedCount [[buffer(1)]],
                  device best_t *bests [[buffer(2)]],
                  uint index [[thread_position_in_grid]])
 {
     code_t allCode = allCodeFromIndex(index);
-    code_t untriedCode = decodeCodeInterop(untried[0]);
-    score_t score = evaluateScore(allCode, untriedCode);
-    bests[index].count = score.whites;
-    bests[index].code = encodeCodeInterop(allCode);
+    bests[index] = findBest(untried, untriedCount, allCode);
 }
