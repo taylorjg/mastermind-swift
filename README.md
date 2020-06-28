@@ -15,9 +15,9 @@ My original results typically looked as follows:
 
 | Build | Mode | Duration |
 | ----- | ---- | -------- |
-| Debug | --single-thread | TODO |
-| Debug | --multiple-threads | TODO |
-| Debug | --metal-compute-shader | TODO |
+| Debug | --single-thread | 177,202ms |
+| Debug | --multiple-threads | 68,155ms |
+| Debug | --metal-compute-shader | 82ms |
 
 A few days later, I happened to be playing around with a JavaScript implementation
 of the same algorithm and noticed that it was much faster than the `--single-thread`
@@ -33,9 +33,9 @@ Switching to the release build of the code yielded much better timings:
 
 | Build | Mode | Duration |
 | ----- | ---- | -------- |
-| Release | --single-thread | TODO |
-| Release | --multiple-threads | TODO |
-| Release | --metal-compute-shader | TODO |
+| Release | --single-thread | 10,921ms |
+| Release | --multiple-threads | 17,510ms |
+| Release | --metal-compute-shader | 28ms |
 
 ## Re-evaluation of Computed Properties
 
@@ -81,7 +81,7 @@ let allScores: [Score] = makeAllScores()
 
 I found the biggest problem by profiling the code using the `Time Profiler`.
 
-> TODO: add screenshot of Time Profiler showing the problem
+![Screenshot of the Time Profiler Instrument](Screenshots/Time-Profiler-Instrument.png)
 
 For convenience, the `Code`
 struct holds the pegs as discrete fields (`p0`, `p1`, `p2` and `p3`) and as an array (`pegs`).
@@ -143,10 +143,10 @@ Having fixed the above issues, typical timings now look as follows:
 
 | Build | Mode | Duration |
 | ----- | ---- | -------- |
-| Debug | --single-thread | 31910ms |
-| Debug | --multiple-threads | 9249ms |
+| Debug | --single-thread | 31,910ms |
+| Debug | --multiple-threads | 9,249ms |
 | Debug | --metal-compute-shader | 26ms |
-| Release | --single-thread | 1063ms |
+| Release | --single-thread | 1,063ms |
 | Release | --multiple-threads | 823ms |
 | Release | --metal-compute-shader | 12ms |
 
