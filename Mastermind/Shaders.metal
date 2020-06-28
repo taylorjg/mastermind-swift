@@ -109,8 +109,12 @@ score_t evaluateScore(thread const code_t& code1, thread const code_t& code2)
     return score_t { blacks, whites };
 }
 
-best_t findBest(constant uint16_t* untried, uint16_t untriedCount, thread const code_t& allCode)
+kernel void findBest(constant uint16_t* untried [[buffer(0)]],
+                     constant uint16_t& untriedCount [[buffer(1)]],
+                     device best_t* bests [[buffer(2)]],
+                     uint index [[thread_position_in_grid]])
 {
+    code_t allCode = allCodeFromIndex(index);
     uint16_t maxCount = 0;
     for (constant score_t& allScore: allScores) {
         uint16_t count = 0;
@@ -121,14 +125,5 @@ best_t findBest(constant uint16_t* untried, uint16_t untriedCount, thread const 
         }
         maxCount = max(maxCount, count);
     }
-    return best_t { maxCount, encodeCodeInterop(allCode) };
-}
-
-kernel void test(constant uint16_t* untried [[buffer(0)]],
-                 constant uint16_t& untriedCount [[buffer(1)]],
-                 device best_t* bests [[buffer(2)]],
-                 uint index [[thread_position_in_grid]])
-{
-    code_t allCode = allCodeFromIndex(index);
-    bests[index] = findBest(untried, untriedCount, allCode);
+    bests[index] = best_t { maxCount, encodeCodeInterop(allCode) };
 }

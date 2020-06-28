@@ -11,9 +11,9 @@ import Metal
 
 let device = MTLCreateSystemDefaultDevice()!
 let library = device.makeDefaultLibrary()!
-let testFunction = library.makeFunction(name: "test")!
+let kernelFunction = library.makeFunction(name: "findBest")!
 let commandQueue = device.makeCommandQueue()!
-let pipelineState = try! device.makeComputePipelineState(function: testFunction)
+let pipelineState = try! device.makeComputePipelineState(function: kernelFunction)
 
 enum Mode {
     case singleThread
@@ -21,8 +21,7 @@ enum Mode {
     case metalComputeShader
 }
 
-//var mode: Mode = .singleThread
-var mode: Mode = .multipleThreads
+var mode: Mode = .singleThread
 
 enum Peg: Int, CaseIterable, CustomStringConvertible {
     case red
