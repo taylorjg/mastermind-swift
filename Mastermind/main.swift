@@ -21,7 +21,8 @@ enum Mode {
     case metalComputeShader
 }
 
-var mode: Mode = .singleThread
+//var mode: Mode = .singleThread
+var mode: Mode = .multipleThreads
 
 enum Peg: Int, CaseIterable, CustomStringConvertible {
     case red
@@ -49,12 +50,6 @@ struct Code: CustomStringConvertible {
     let p2: Peg
     let p3: Peg
     
-    var pegs: [Peg] {
-        get {
-            return [p0, p1, p2, p3]
-        }
-    }
-    
     var description: String {
         return "\(p0)-\(p1)-\(p2)-\(p3)"
     }
@@ -75,9 +70,7 @@ struct Score: Equatable, CustomStringConvertible {
     }
 }
 
-let allPegs: [Peg] = Peg.allCases
-
-var allCodes: [Code] {
+func makeAllCodes() -> [Code] {
     var codes = [Code]()
     for p0 in allPegs {
         for p1 in allPegs {
@@ -91,7 +84,7 @@ var allCodes: [Code] {
     return codes
 }
 
-var allScores: [Score] {
+func makeAllScores() -> [Score] {
     var scores = [Score]()
     for blacks in 0...4 {
         for whites in 0...4 {
@@ -103,14 +96,30 @@ var allScores: [Score] {
     return scores
 }
 
+let allPegs: [Peg] = Peg.allCases
+let allCodes: [Code] = makeAllCodes()
+let allScores: [Score] = makeAllScores()
+
+func countPegs(peg: Peg, code: Code) -> Int {
+    return
+        (code.p0 == peg ? 1 : 0) +
+            (code.p1 == peg ? 1 : 0) +
+            (code.p2 == peg ? 1 : 0) +
+            (code.p3 == peg ? 1 : 0)
+}
+
 func evaluateScore(code1: Code, code2: Code) -> Score {
     let mins = allPegs.map { peg -> Int in
-        let numMatchingCode1Pegs = code1.pegs.count { $0 == peg }
-        let numMatchingCode2Pegs = code2.pegs.count { $0 == peg }
+        let numMatchingCode1Pegs = countPegs(peg: peg, code: code1)
+        let numMatchingCode2Pegs = countPegs(peg: peg, code: code2)
         return min(numMatchingCode1Pegs, numMatchingCode2Pegs)
     }
     let sumOfMins = mins.reduce(0, +)
-    let blacks = Array(zip(code1.pegs, code2.pegs)).count { $0.0 == $0.1 }
+    var blacks = 0
+    blacks += code1.p0 == code2.p0 ? 1 : 0
+    blacks += code1.p1 == code2.p1 ? 1 : 0
+    blacks += code1.p2 == code2.p2 ? 1 : 0
+    blacks += code1.p3 == code2.p3 ? 1 : 0
     let whites = sumOfMins - blacks
     return Score(blacks: blacks, whites: whites)
 }
@@ -121,7 +130,7 @@ func randomSecret() -> Code {
 
 let initialGuess = Code(p0: .red, p1: .red, p2: .green, p3: .green)
 
-func task(untried: [Code], chunk: [Code]) -> (Int, Code) {
+func findBest(untried: [Code], chunk: [Code]) -> (Int, Code) {
     let best = chunk.reduce((Int.max, initialGuess), { (currentBest, code) in
         let count = allScores.reduce(0, { (currentMax, score) in
             let count = untried.count { evaluateScore(code1: code, code2: $0) == score }
@@ -133,25 +142,24 @@ func task(untried: [Code], chunk: [Code]) -> (Int, Code) {
 }
 
 func chooseNextGuessSingleThread(untried: [Code]) -> Code {
-    let best = task(untried: untried, chunk: allCodes)
+    let best = findBest(untried: untried, chunk: allCodes)
     return best.1
 }
 
 func chooseNextGuessMultipleThreads(untried: [Code]) -> Code {
-    if untried.count < 32 {
+    let numThreads = 8
+    if untried.count < numThreads {
         return chooseNextGuessSingleThread(untried: untried)
     }
-    let numThreads = 8
     let chunkSize = allCodes.count / numThreads
     let chunks = allCodes.chunked(into: chunkSize)
     var bests = [(Int, Code)]()
     let dispatchQueue = DispatchQueue.global(qos: .userInitiated)
     let dispatchGroup = DispatchGroup()
     let dispatchSemaphore = DispatchSemaphore(value: 1)
-    for threadNum in 0..<numThreads {
-        let chunk = chunks[threadNum]
+    for chunk in chunks {
         dispatchQueue.async(group: dispatchGroup) {
-            let best = task(untried: untried, chunk: chunk)
+            let best = findBest(untried: untried, chunk: chunk)
             dispatchSemaphore.wait()
             defer { dispatchSemaphore.signal() }
             bests.append(best)
@@ -273,12 +281,15 @@ func main() {
     processCommandLineArgs()
     let secret = randomSecret()
     log(message: "secret: \(secret)")
+    let start = DispatchTime.now()
     let answer = solve { guess in
         let score = evaluateScore(code1: secret, code2: guess)
         log(message: "guess: \(guess); score: \(score)")
         return score
     }
-    log(message: "answer: \(answer)")
+    let end = DispatchTime.now()
+    let duration = (end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
+    log(message: "answer: \(answer); duration: \(duration)ms")
 }
 
 main()
