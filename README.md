@@ -9,63 +9,146 @@ Swift implementation of Knuth's algorithm to solve Mastermind within 5 guesses.
   * ~~using multiple threads~~
   * ~~using a Metal compute shader~~
 
-# Results
+# Original Results
 
-Here are typical results for each mode on my MacBook Pro (Mid 2014). The GPU mode is unbelievably quick!
+My original results typically looked as follows:
 
-## Using a single thread
+| Build | Mode | Duration |
+| ----- | ---- | -------- |
+| Debug | --single-thread | TODO |
+| Debug | --multiple-threads | TODO |
+| Debug | --metal-compute-shader | TODO |
 
-Execution time: about 2 mins 55 seconds.
+A few days later, I happened to be playing around with a JavaScript implementation
+of the same algorithm and noticed that it was much faster than the `--single-thread`
+and `--multiple-threads` modes above. This made me suspicious. So I investigated and
+found a few things that were slowing it down as described in the next section.
 
+# Issues
+
+## Debug vs Release build
+
+My original timings used the debug build of the code.
+Switching to the release build of the code yielded much better timings:
+
+| Build | Mode | Duration |
+| ----- | ---- | -------- |
+| Release | --single-thread | TODO |
+| Release | --multiple-threads | TODO |
+| Release | --metal-compute-shader | TODO |
+
+## Re-evaluation of Computed Properties
+
+I have a couple of computed variables - `allScores` and `allCodes` - which are used several times.
+Each time they are called, they rebuild their arrays. I introduced a couple of helper functions - 
+`makeAllScores` and `makeAllCodes`.
+
+Old `allScores` code:
+
+```swift
+var allScores: [Score] {
+    var scores = [Score]()
+    for blacks in 0...4 {
+        for whites in 0...4 {
+            if blacks + whites <= 4 && !(blacks == 3 && whites == 1){
+                scores.append(Score(blacks: blacks, whites: whites))
+            }
+        }
+    }
+    return scores
+}
 ```
-$ Mastermind --single-thread
-[23:36:22] secret: Y-w-w-Y
-[23:36:22] guess: R-R-G-G; score:
-[23:36:22] untried.count: 256
-[23:39:05] guess: B-B-Y-b; score: W
-[23:39:05] untried.count: 16
-[23:39:15] guess: w-w-Y-w; score: BWW
-[23:39:15] untried.count: 3
-[23:39:17] guess: R-Y-R-w; score: WW
-[23:39:17] guess: Y-w-w-Y; score: BBBB
-[23:39:17] answer: Y-w-w-Y
+
+New `allScores` code:
+
+```swift
+func makeAllScores() -> [Score] {
+    var scores = [Score]()
+    for blacks in 0...4 {
+        for whites in 0...4 {
+            if blacks + whites <= 4 && !(blacks == 3 && whites == 1){
+                scores.append(Score(blacks: blacks, whites: whites))
+            }
+        }
+    }
+    return scores
+}
+
+let allScores: [Score] = makeAllScores()
 ```
 
-## Using multiple threads
+## Hot spot in `evaluateScore`
 
-Execution time: about 1 min 13 seconds.
+I found the biggest problem by profiling the code using the `Time Profiler`.
 
+> TODO: add screenshot of Time Profiler showing the problem
+
+For convenience, the `Code`
+struct holds the pegs as discrete fields (`p0`, `p1`, `p2` and `p3`) and as an array (`pegs`).
+The `pegs` array is used a lot by `evaluateScore` in count, filter and zip operations etc.
+Whilst this makes the code quite readable and expressive, it had severe performance issues.
+I'm guessing that this is because it causes a lot of memory allocations and deallocations.
+If `evaluateScore` was only called a couple of times, there wouldn't be any problem.
+But `evaluateScore` gets called a lot of times (millions) so the inefficiencies are magnified.
+I rewrote `evaluateScore` in dumber terms to eliminate the `pegs` array completely and it
+resulted in a big improvement in performance.
+
+This is the old version of `evaluateScore`:
+
+```swift
+func evaluateScore(code1: Code, code2: Code) -> Score {
+    let mins = allPegs.map { peg -> Int in
+        let numMatchingCode1Pegs = code1.pegs.count { $0 == peg }
+        let numMatchingCode2Pegs = code2.pegs.count { $0 == peg }
+        return min(numMatchingCode1Pegs, numMatchingCode2Pegs)
+    }
+    let sumOfMins = mins.reduce(0, +)
+    let blacks = Array(zip(code1.pegs, code2.pegs)).count { $0.0 == $0.1 }
+    let whites = sumOfMins - blacks
+    return Score(blacks: blacks, whites: whites)
+}
 ```
-$ Mastermind --multiple-threads
-[23:40:37] secret: b-B-w-b
-[23:40:37] guess: R-R-G-G; score:
-[23:40:37] untried.count: 256
-[23:41:35] guess: b-Y-B-B; score: BW
-[23:41:35] untried.count: 46
-[23:41:46] guess: b-Y-Y-b; score: BB
-[23:41:46] untried.count: 6
-[23:41:50] guess: R-b-Y-w; score: WW
-[23:41:50] guess: b-B-w-b; score: BBBB
-[23:41:50] answer: b-B-w-b
+
+This is the new version of `evaluateScore` and a simple helper function, `countPegs`:
+
+```swift
+func countPegs(peg: Peg, code: Code) -> Int {
+    return
+        (code.p0 == peg ? 1 : 0) +
+            (code.p1 == peg ? 1 : 0) +
+            (code.p2 == peg ? 1 : 0) +
+            (code.p3 == peg ? 1 : 0)
+}
+
+func evaluateScore(code1: Code, code2: Code) -> Score {
+    let mins = allPegs.map { peg -> Int in
+        let numMatchingCode1Pegs = countPegs(peg: peg, code: code1)
+        let numMatchingCode2Pegs = countPegs(peg: peg, code: code2)
+        return min(numMatchingCode1Pegs, numMatchingCode2Pegs)
+    }
+    let sumOfMins = mins.reduce(0, +)
+    var blacks = 0
+    blacks += code1.p0 == code2.p0 ? 1 : 0
+    blacks += code1.p1 == code2.p1 ? 1 : 0
+    blacks += code1.p2 == code2.p2 ? 1 : 0
+    blacks += code1.p3 == code2.p3 ? 1 : 0
+    let whites = sumOfMins - blacks
+    return Score(blacks: blacks, whites: whites)
+}
 ```
 
-## Using a Metal compute shader
+# Updated Results
 
-Execution time: about 1 second.
+Having fixed the above issues, typical timings now look as follows:
 
-```
-$ Mastermind --metal-compute-shader
-[23:46:36] secret: b-w-G-b
-[23:46:36] guess: R-R-G-G; score: B
-[23:46:36] untried.count: 256
-[23:46:36] guess: R-B-Y-Y; score:
-[23:46:36] untried.count: 16
-[23:46:36] guess: R-b-G-b; score: BBW
-[23:46:36] untried.count: 2
-[23:46:36] guess: R-R-R-b; score: B
-[23:46:36] guess: b-w-G-b; score: BBBB
-[23:46:36] answer: b-w-G-b
-```
+| Build | Mode | Duration |
+| ----- | ---- | -------- |
+| Debug | --single-thread | 31910ms |
+| Debug | --multiple-threads | 9249ms |
+| Debug | --metal-compute-shader | 26ms |
+| Release | --single-thread | 1063ms |
+| Release | --multiple-threads | 823ms |
+| Release | --metal-compute-shader | 12ms |
 
 # Links
 
