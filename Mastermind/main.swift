@@ -99,7 +99,7 @@ let allPegs: [Peg] = Peg.allCases
 let allCodes: [Code] = makeAllCodes()
 let allScores: [Score] = makeAllScores()
 
-func countPegs(peg: Peg, code: Code) -> Int {
+func countOccurrencesOfPeg(_ peg: Peg, in code: Code) -> Int {
     return
         (code.p0 == peg ? 1 : 0) +
             (code.p1 == peg ? 1 : 0) +
@@ -107,19 +107,23 @@ func countPegs(peg: Peg, code: Code) -> Int {
             (code.p3 == peg ? 1 : 0)
 }
 
+func countMatchingPegsByPosition(code1: Code, code2: Code) -> Int {
+    return
+        (code1.p0 == code2.p0 ? 1 : 0) +
+            (code1.p1 == code2.p1 ? 1 : 0) +
+            (code1.p2 == code2.p2 ? 1 : 0) +
+            (code1.p3 == code2.p3 ? 1 : 0)
+}
+
 func evaluateScore(code1: Code, code2: Code) -> Score {
-    let mins = allPegs.map { peg -> Int in
-        let numMatchingCode1Pegs = countPegs(peg: peg, code: code1)
-        let numMatchingCode2Pegs = countPegs(peg: peg, code: code2)
-        return min(numMatchingCode1Pegs, numMatchingCode2Pegs)
+    let minOccurrencies = allPegs.map { peg -> Int in
+        let numOccurrencies1 = countOccurrencesOfPeg(peg, in: code1)
+        let numOccurrencies2 = countOccurrencesOfPeg(peg, in: code2)
+        return min(numOccurrencies1, numOccurrencies2)
     }
-    let sumOfMins = mins.reduce(0, +)
-    var blacks = 0
-    blacks += code1.p0 == code2.p0 ? 1 : 0
-    blacks += code1.p1 == code2.p1 ? 1 : 0
-    blacks += code1.p2 == code2.p2 ? 1 : 0
-    blacks += code1.p3 == code2.p3 ? 1 : 0
-    let whites = sumOfMins - blacks
+    let sumOfMinOccurrencies = minOccurrencies.reduce(0, +)
+    let blacks = countMatchingPegsByPosition(code1: code1, code2: code2)
+    let whites = sumOfMinOccurrencies - blacks
     return Score(blacks: blacks, whites: whites)
 }
 

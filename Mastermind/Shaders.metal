@@ -83,7 +83,7 @@ constant score_t allScores[] = {
     score_t { .blacks = 4, .whites = 0 }
 };
 
-uint8_t countPegs(peg_t peg, thread const code_t& code)
+uint8_t countOccurrenciesOfPeg(peg_t peg, thread const code_t& code)
 {
     return
     (code.p0 == peg ? 1 : 0) +
@@ -92,20 +92,25 @@ uint8_t countPegs(peg_t peg, thread const code_t& code)
     (code.p3 == peg ? 1 : 0);
 }
 
+uint8_t countMatchingPegsByPosition(thread const code_t& code1, thread const code_t& code2)
+{
+    return
+    (code1.p0 == code2.p0 ? 1 : 0) +
+    (code1.p1 == code2.p1 ? 1 : 0) +
+    (code1.p2 == code2.p2 ? 1 : 0) +
+    (code1.p3 == code2.p3 ? 1 : 0);
+}
+
 score_t evaluateScore(thread const code_t& code1, thread const code_t& code2)
 {
-    uint8_t sumOfMins = 0;
+    uint8_t sumOfMinOccurrencies = 0;
     for (constant peg_t& peg: allPegs) {
-        uint numMatchingCode1Pegs = countPegs(peg, code1);
-        uint numMatchingCode2Pegs = countPegs(peg, code2);
-        sumOfMins += min(numMatchingCode1Pegs, numMatchingCode2Pegs);
+        uint numOccurrencies1 = countOccurrenciesOfPeg(peg, code1);
+        uint numOccurrencies2 = countOccurrenciesOfPeg(peg, code2);
+        sumOfMinOccurrencies += min(numOccurrencies1, numOccurrencies2);
     }
-    uint8_t blacks = 0;
-    if (code1.p0 == code2.p0) blacks++;
-    if (code1.p1 == code2.p1) blacks++;
-    if (code1.p2 == code2.p2) blacks++;
-    if (code1.p3 == code2.p3) blacks++;
-    uint8_t whites = sumOfMins - blacks;
+    uint8_t blacks = countMatchingPegsByPosition(code1, code2);
+    uint8_t whites = sumOfMinOccurrencies - blacks;
     return score_t { blacks, whites };
 }
 
