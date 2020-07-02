@@ -116,14 +116,14 @@ func countMatchingPegsByPosition(code1: Code, code2: Code) -> Int {
 }
 
 func evaluateScore(code1: Code, code2: Code) -> Score {
-    let minOccurrencies = allPegs.map { peg -> Int in
-        let numOccurrencies1 = countOccurrencesOfPeg(peg, in: code1)
-        let numOccurrencies2 = countOccurrencesOfPeg(peg, in: code2)
-        return min(numOccurrencies1, numOccurrencies2)
+    let minOccurrences = allPegs.map { peg -> Int in
+        let numOccurrences1 = countOccurrencesOfPeg(peg, in: code1)
+        let numOccurrences2 = countOccurrencesOfPeg(peg, in: code2)
+        return min(numOccurrences1, numOccurrences2)
     }
-    let sumOfMinOccurrencies = minOccurrencies.reduce(0, +)
+    let sumOfMinOccurrences = minOccurrences.reduce(0, +)
     let blacks = countMatchingPegsByPosition(code1: code1, code2: code2)
-    let whites = sumOfMinOccurrencies - blacks
+    let whites = sumOfMinOccurrences - blacks
     return Score(blacks: blacks, whites: whites)
 }
 
